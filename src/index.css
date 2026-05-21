@@ -21,8 +21,7 @@
   --accent-bg: rgba(170, 59, 255, 0.1);
   --accent-border: rgba(170, 59, 255, 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -54,8 +53,7 @@
     --accent-bg: rgba(192, 132, 252, 0.15);
     --accent-border: rgba(192, 132, 252, 0.5);
     --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
   }
 
   #social .button-icon {
@@ -70,11 +68,14 @@ body {
   background-size: cover;
   color: var(--text-main);
   min-height: 100vh;
+  /* Убираем возможные боковые скроллы на уровне body */
+  overflow-x: hidden; 
 }
 
+/* ИСПРАВЛЕНО: Теперь контейнер гибкий */
 #root {
-  width: 1126px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 1126px; /* Вместо фиксированных width */
   margin: 0 auto;
   text-align: center;
   border-inline: 1px solid var(--border);
@@ -82,39 +83,45 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  padding: 0 16px; /* Добавляем безопасные отступы по бокам для мобилок */
 }
 
-h1,
+/* Оптимизация заголовков под мобильные */
+h1 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--text-h);
+  font-size: 56px;
+  letter-spacing: -1.68px;
+  margin: 32px 0;
+}
+@media (max-width: 768px) {
+  h1 {
+    font-size: 28px;
+    margin: 16px 0;
+  }
+}
+
 h2 {
   font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
   font-size: 24px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+}
+@media (max-width: 768px) {
+  h2 {
+    font-size: 18px;
   }
 }
+
 p {
   margin: 0;
 }
 
-code,
-.counter {
+code, .counter {
   font-family: var(--mono);
   display: inline-flex;
   border-radius: 4px;
@@ -128,7 +135,7 @@ code {
   background: var(--code-bg);
 }
 
-/* Элементы формы внутри вашей карточки */
+/* Элементы формы */
 .custom-input-group {
   margin-bottom: 20px;
   text-align: left;
@@ -159,7 +166,7 @@ code {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Главная контрастная кнопка */
+/* Кнопки */
 .primary-btn {
   width: 100%;
   padding: 16px;
@@ -170,7 +177,7 @@ code {
   font-size: 16px;
   font-weight: bold;
   text-transform: uppercase;
-  letter-spacing: '1px';
+  letter-spacing: 1px;
   cursor: pointer;
   transition: background 0.2s ease;
   margin-top: 10px;
@@ -180,7 +187,6 @@ code {
   background: var(--accent-button-hover);
 }
 
-/* Ошибка (вместо огромной плашки) */
 .error-banner {
   background: rgba(255, 74, 74, 0.15);
   border: 1px solid var(--error-color);
@@ -191,16 +197,24 @@ code {
   margin-bottom: 20px;
 }
 
+/* Модальные окна (адаптация под мобильные устройства) */
 .modal-content {
-  background-color: #121212; /* Темный фон под стать админке */
-  color: #ffffff;            /* Белый текст */
-  border: 1px solid #2a2a2a; /* Легкая граница, чтобы окно не сливалось с бэкграундом */
+  background-color: #121212;
+  color: #ffffff;
+  border: 1px solid #2a2a2a;
   border-radius: 12px;
 }
 
-/* На всякий случай проверяем инпуты внутри модалки */
+@media (max-width: 576px) {
+  .modal-content {
+    border-radius: 0; /* На весь экран на мелких мобилках */
+    padding: 16px;
+  }
+}
+
 .modal-content input, 
-.modal-content select {
+.modal-content select,
+.modal-content textarea {
   background-color: #222;
   color: #fff;
   border: 1px solid #444;
@@ -208,5 +222,73 @@ code {
 
 .white-placeholder::placeholder {
   color: #ffffff !important;
-  opacity: 1; /* В Firefox по умолчанию стоит opacity: 0.54, сбрасываем в 1 */
+  opacity: 1;
+}
+
+/* --- ТВОИ НОВЫЕ АДАПТИВНЫЕ КЛАССЫ ДЛЯ АДМИНКИ --- */
+
+/* 1. Превращение таблиц в карточки на мобилках */
+@media (max-width: 768px) {
+  .responsive-table {
+    display: block;
+    width: 100%;
+  }
+  
+  .responsive-table thead {
+    display: none; /* Прячем заголовки таблицы */
+  }
+  
+  .responsive-table tbody, 
+  .responsive-table tr, 
+  .responsive-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .responsive-table tr {
+    background: var(--card-bg);
+    backdrop-filter: var(--card-blur);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    padding: 12px;
+    text-align: left;
+  }
+  
+  .responsive-table td {
+    border: none !important;
+    padding: 6px 0;
+    display: flex;
+    justify-content: space-between; /* Данные слева, значение справа */
+    align-items: center;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .responsive-table td:last-child {
+    border-bottom: none !important;
+    margin-top: 10px;
+    justify-content: flex-end; /* Кнопки действий сдвигаем вправо */
+  }
+
+  /* Позволяет добавлять псевдоназвания колонок через data-label в HTML */
+  .responsive-table td::before {
+    content: attr(data-label);
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+}
+
+/* 2. Адаптивная структура лейаута админки */
+.admin-container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .admin-container {
+    flex-direction: column; /* На мобилке контент падает под меню */
+  }
 }
