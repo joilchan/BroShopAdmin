@@ -156,10 +156,19 @@ const Products = () => {
     };
 
     const handleVariantChange = (index, field, value) => {
-        const updatedVariants = [...newProduct.productVariants];
-        updatedVariants[index][field] = field === 'stockQuantity' 
-            ? (parseInt(value) || 0) 
-            : value;
+        // Если меняем количество, проверяем, чтобы число не было отрицательным
+        if (field === 'stockQuantity') {
+            if (value !== "" && Number(value) < 0) {
+                return; // Игнорируем изменения, если число меньше нуля
+            }
+        }
+
+        const updatedVariants = newProduct.productVariants.map((variant, i) => {
+            if (i === index) {
+                return { ...variant, [field]: value };
+            }
+            return variant;
+        });
 
         setNewProduct({ ...newProduct, productVariants: updatedVariants });
     };
@@ -218,6 +227,16 @@ const Products = () => {
                     loadData();
                 } catch (err) { alert("Ошибка удаления: " + err.message); }
             }
+        }
+    };
+
+    const handlePriceChange = (e) => {
+        const value = e.target.value;
+        
+        // Если строка пустая, позволяем стереть всё. 
+        // Иначе проверяем, что число больше или равно 0.
+        if (value === "" || Number(value) >= 0) {
+            setPrice(value); // Или ваша функция обновления состояния (например, в handleChange для формы)
         }
     };
 
@@ -505,21 +524,47 @@ const Products = () => {
                     />
                     
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6} sx={{width:150}}>
                             <TextField 
                                 label="Цена (₽)" 
                                 type="number" 
                                 fullWidth
+                                inputProps={{ min: 0 }}
                                 value={newProduct.price} 
-                                onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === "" || Number(val) >= 0) {
+                                        setNewProduct({ ...newProduct, price: val });
+                                    }
+                                }}
                                 sx={{
-                                    '& .MuiOutlinedInput-root': { color: '#fff !important', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' }, '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' }, '&.Mui-focused fieldset': { borderColor: '#fff' } },
-                                    '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.6) !important' }, '& .MuiInputLabel-root.Mui-focused': { color: '#fff !important' }, '& input': { color: '#fff !important' }
+                                    '& .MuiOutlinedInput-root': { 
+                                        color: '#fff !important', 
+                                        backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                                        borderRadius: '10px', 
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' }, 
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' }, 
+                                        '&.Mui-focused fieldset': { borderColor: '#fff' } 
+                                    },
+                                    '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.6) !important' }, 
+                                    '& .MuiInputLabel-root.Mui-focused': { color: '#fff !important' }, 
+                                    '& input': { color: '#fff !important' },
+                                    
+                                    // ВОТ ЗДЕСЬ ИСПРАВЛЕНО (добавлены кавычки вокруг 'none'):
+                                    '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                        '-webkit-appearance': 'none',
+                                        margin: 0,
+                                    },
+                                    '& input[type=number]': {
+                                        '-moz-appearance': 'textfield',
+                                    },
                                 }}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth sx={{
+                        <Grid item xs={12} sm={6} sx={{width: 200}}>
+                            <FormControl fullWidth sx={ 
+                                {
+                                
                                 '& .MuiOutlinedInput-root': { color: '#fff !important', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' }, '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' }, '&.Mui-focused fieldset': { borderColor: '#fff' } },
                                 '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.6) !important' }, '& .MuiInputLabel-root.Mui-focused': { color: '#fff !important' }, '& .MuiSelect-icon': { color: 'rgba(255, 255, 255, 0.7)' }
                             }}>
@@ -533,10 +578,8 @@ const Products = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                    </Grid>
                     
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6} sx={{width: 170}}>
                             <FormControl fullWidth sx={{
                                 '& .MuiOutlinedInput-root': { color: '#fff !important', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' }, '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' }, '&.Mui-focused fieldset': { borderColor: '#fff' } },
                                 '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.6) !important' }, '& .MuiInputLabel-root.Mui-focused': { color: '#fff !important' }, '& .MuiSelect-icon': { color: 'rgba(255, 255, 255, 0.7)' }
@@ -551,7 +594,11 @@ const Products = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                    </Grid>
+                    
+                    <Grid container spacing={2}>
+                        
+                        <Grid item xs={12} sm={6} sx={{width: 2500}}>
                             <TextField 
                                 label="Ссылка на изображение" 
                                 fullWidth
@@ -605,12 +652,22 @@ const Products = () => {
                                     label="Кол-во" 
                                     type="number" 
                                     size="small"
+                                    // Передаем min нативному инпуту количества
+                                    inputProps={{ min: 0 }}
                                     value={v.stockQuantity}
                                     onChange={(e) => handleVariantChange(index, 'stockQuantity', e.target.value)}
                                     sx={{
                                         width: '140px',
                                         '& .MuiOutlinedInput-root': { color: '#fff !important', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' }, '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' }, '&.Mui-focused fieldset': { borderColor: '#fff' } },
-                                        '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.6) !important' }, '& .MuiInputLabel-root.Mui-focused': { color: '#fff !important' }, '& input': { color: '#fff !important' }
+                                        '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.6) !important' }, '& .MuiInputLabel-root.Mui-focused': { color: '#fff !important' }, '& input': { color: '#fff !important' },
+                                        // СКРЫВАЕМ СТРЕЛОЧКИ ТУТ:
+                                        '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                                            '-webkit-appearance': 'none',
+                                            margin: 0,
+                                        },
+                                        '& input[type=number]': {
+                                            '-moz-appearance': 'textfield',
+                                        },
                                     }}
                                 />
                                 <IconButton 
