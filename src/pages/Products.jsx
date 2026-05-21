@@ -379,10 +379,21 @@ const Products = () => {
                                         )}
                                     </TableCell>
                                     <TableCell sx={{ color: '#fff', fontWeight: '600' }}>{row.price} ₽</TableCell>
-                                    <TableCell align="right">
-                                        <IconButton sx={{ color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#ff4d4d' } }} onClick={() => handleDelete(row.productId)}>
-                                            <DeleteIcon fontSize="small" />
-                                        </IconButton>
+                                   <TableCell align="right">
+                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                            <IconButton 
+                                                sx={{ color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#fff' } }} 
+                                                onClick={() => handleEditOpen(row)}
+                                            >
+                                                <EditIcon fontSize="small" />
+                                            </IconButton>
+                                            <IconButton 
+                                                sx={{ color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#ff4d4d' } }} 
+                                                onClick={() => handleDelete(row.productId)}
+                                            >
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </Box>
                                     </TableCell>
                                 </TableRow>
                             ))
