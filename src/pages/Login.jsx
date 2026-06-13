@@ -10,13 +10,13 @@ const Login = ({ onLoginSuccess }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
+const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
         try {
             const response = await api.post('/Users/loginAdmin', {
-                identifier: identifier,
-                password: password
+                identifier: identifier.trim(), 
+                password: password.trim()
             });
 
             localStorage.setItem('adminUser', JSON.stringify(response.data));

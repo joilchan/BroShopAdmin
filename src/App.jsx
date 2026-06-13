@@ -45,7 +45,7 @@ function App() {
     <BrowserRouter>
       <Box sx={{ display: 'flex', minHeight: '100vh' }}>
         
-        {/* Шапка сайта в стиле Glassmorphism */}
+        {/* Шапка сайта*/}
         <AppBar 
           position="fixed" 
           elevation={0}
@@ -217,13 +217,16 @@ function App() {
 
         {/* Главная контентная область рабочей зоны */}
         <Box 
-          component="main" 
+          component="main"
           sx={{ 
             flexGrow: 1, 
-            p: 4, 
-            mt: 8,
+            width: '100%',        // Заставляет контент занять всю оставшуюся ширину справа от меню
+            p: 2,                 // Уменьшили отступ с 5 до 3 (с 40px до 24px), чтобы убрать лишнюю пустоту по краям
+            mt: 10,
+            mb: 10,
             minHeight: '100vh',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            overflowX: 'hidden'   // Защита от случайного появления горизонтальной прокрутки экрана
           }}
         >
           <Routes>

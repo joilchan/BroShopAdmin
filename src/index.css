@@ -75,15 +75,14 @@ body {
 /* ИСПРАВЛЕНО: Теперь контейнер гибкий */
 #root {
   width: 100%;
-  max-width: 1126px; /* Вместо фиксированных width */
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  /* Убираем жесткое ограничение в 1126px и разрешаем растягиваться на весь экран */
+  max-width: 100% !important; 
+  margin: 0;
+  text-align: left; /* Меняем с center на left, чтобы админка не «плыла» */
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding: 0 16px; /* Добавляем безопасные отступы по бокам для мобилок */
 }
 
 /* Оптимизация заголовков под мобильные */
