@@ -21,7 +21,6 @@ const Products = () => {
     const [orderBy, setOrderBy] = useState('name'); 
     const [order, setOrder] = useState('asc');      
 
-    // open теперь отвечает за открытие правой боковой панели вместо диалогового окна
     const [open, setOpen] = useState(false);
     const [newProduct, setNewProduct] = useState({
         name: '',
@@ -176,7 +175,7 @@ const Products = () => {
         if (window.confirm("Удалить этот товар?")) {
             try {
                 await api.delete(`/Products/${id}`);
-                // Если мы удалили товар, который сейчас открыт в панели — закрываем её
+
                 if (editId === id) {
                     handleClose();
                 }
@@ -269,7 +268,7 @@ const Products = () => {
             <Box sx={{ 
                 display: 'flex', 
                 width: '100%', 
-                gap: open ? 2 : 0, // Небольшой фиксированный зазор между ними
+                gap: open ? 2 : 0,
                 alignItems: 'flex-start',
                 transition: 'all 0.35s ease'
             }}>
