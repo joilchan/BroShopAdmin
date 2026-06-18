@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Box, Button, TextField, Typography, Paper, Container, Alert } from '@mui/material';
 import api from '../api/axiosConfig';
 
-// Импортируй белый логотип. Укажи правильный путь к картинке bros_logo_white.png в твоем проекте
 import logoWhite from '/public/Resources/bros_logo_white.png'; 
 
 const Login = ({ onLoginSuccess }) => {
@@ -112,10 +111,10 @@ const handleLogin = async (e) => {
                                 },
                                 // Стили для поля ввода
                                 '& .MuiOutlinedInput-root': {
-                                    color: '#ffffff', // Чистый белый цвет вводимого текста
+                                    color: '#ffffff',
                                     backgroundColor: 'rgba(255, 255, 255, 0.05)',
                                     borderRadius: '12px',
-                                    // Корректное отображение белого текста при автозаполнении браузером
+                                    
                                     '& input': {
                                         WebkitTextFillColor: '#ffffff !important',
                                     },
@@ -141,12 +140,12 @@ const handleLogin = async (e) => {
                                 '& .MuiInputLabel-root': {
                                     color: 'var(--text-muted)',
                                     '&.Mui-focused': {
-                                        color: '#b39ddb', // Мягкий фиолетовый цвет при фокусе
+                                        color: '#b39ddb',
                                     },
                                 },
                                 // Стили для поля ввода
                                 '& .MuiOutlinedInput-root': {
-                                    color: '#ffffff', // Чистый белый цвет вводимого текста
+                                    color: '#ffffff',
                                     backgroundColor: 'rgba(255, 255, 255, 0.05)',
                                     borderRadius: '12px',
                                     '& input': {
@@ -154,7 +153,7 @@ const handleLogin = async (e) => {
                                     },
                                     '& fieldset': { borderColor: 'var(--border-color)' },
                                     '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-                                    '&.Mui-focused fieldset': { borderColor: '#b39ddb' }, // Фиолетовая рамка при фокусе
+                                    '&.Mui-focused fieldset': { borderColor: '#b39ddb' },
                                 },
                             }}
                         />

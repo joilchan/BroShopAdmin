@@ -1,270 +1,336 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { 
     Box, Typography, Paper, Grid, Table, TableBody, TableCell, 
-    TableContainer, TableHead, TableRow, Button, MenuItem, Select, FormControl, InputLabel
+    TableContainer, TableHead, TableRow, Button, TextField,
+    MenuItem, Select, FormControl, InputLabel, Tabs, Tab
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import DateRangeIcon from '@mui/icons-material/DateRange';
 import { 
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+    PieChart, Pie, Cell
 } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import api from '../api/axiosConfig';
 
+const COLORS = ['#b39ddb', '#81d4fa', '#ffab91', '#a5d6a7', '#fff59d', '#ce93d8'];
+
+
+
 const Dashboard = () => {
-    const [orders, setOrders] = useState([]);
-    const [groupBy, setGroupBy] = useState('day');
-    const [statsData, setStatsData] = useState([]);
+    // Режим фильтрации: 0 - по месяцам, 1 - точные даты руками
+    const [filterMode, setFilterMode] = useState(0);
+
+    // Генерируем список последних 12 месяцев для селектора
+    const [availableMonths] = useState(() => {
+        const months = [];
+        const date = new Date(); // Июнь 2026
+        for (let i = 0; i < 12; i++) {
+            const m = date.getMonth();
+            const y = date.getFullYear();
+            const label = date.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+            // Сохраняем строку вида "2026-06" в качестве ключа
+            const value = `${y}-${String(m + 1).padStart(2, '0')}`;
+            months.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+            date.setMonth(date.getMonth() - 1); // Шаг назад
+        }
+        return months;
+    });
+
+    // Храним выбранный месяц (по умолчанию - текущий)
+    const [selectedMonth, setSelectedMonth] = useState(availableMonths[0].value);
+
+    // Храним кастомные даты (для ручного режима)
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return d.toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     
+    const [stats, setStats] = useState(null);
+    const [isPdfMode, setIsPdfMode] = useState(false);
     const pdfRef = useRef();
 
+    // Загрузка данных при изменении любых фильтров
     useEffect(() => {
-        fetchOrders();
-    }, []);
+        fetchDetailedStats();
+    }, [filterMode, selectedMonth, startDate, endDate]);
+    
+    const fetchDetailedStats = async () => {
+        let reqStart = startDate;
+        let reqEnd = endDate;
 
-    useEffect(() => {
-        if (orders.length > 0) {
-            processStatistics(orders, groupBy);
+        // Если выбран режим "По месяцам", вычисляем даты программно
+        if (filterMode === 0) {
+            const [year, month] = selectedMonth.split('-');
+            reqStart = `${year}-${month}-01`;
+            // Находим последний день месяца
+            const lastDay = new Date(year, month, 0).getDate();
+            reqEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
         }
-    }, [orders, groupBy]);
 
-    const fetchOrders = async () => {
         try {
-            const response = await api.get('/Orders/all');
-            const validOrders = response.data.filter(o => o.status !== 'Отменен');
-            setOrders(validOrders);
+            const response = await api.get(`/Statistics/detailed`, {
+                params: { startDate: reqStart, endDate: reqEnd }
+            });
+            setStats(response.data);
         } catch (error) {
-            console.error("Ошибка при получении заказов:", error);
+            console.error("Ошибка при получении аналитики:", error);
         }
     };
 
-    const processStatistics = (ordersData, period) => {
-        const grouped = {};
+    const handleExportPDF = async () => {
+        setIsPdfMode(true);
+        setTimeout(() => {
+            const input = pdfRef.current;
+            const originalBg = input.style.background;
+            const originalColor = input.style.color;
+            const originalBorder = input.style.border;
 
-        ordersData.forEach(order => {
-            const date = new Date(order.orderDate);
-            let key = '';
+            input.style.background = '#ffffff';
+            input.style.color = '#000000';
+            input.style.border = 'none';
 
-            if (period === 'day') {
-                key = date.toLocaleDateString('ru-RU');
-            } else if (period === 'month') {
-                key = date.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
-            }
+            const textElements = input.querySelectorAll('*');
+            textElements.forEach(el => {
+                if(el.style) el.style.color = '#000000';
+            });
 
-            if (!grouped[key]) {
-                grouped[key] = { name: key, revenue: 0, ordersCount: 0 };
-            }
-
-            grouped[key].revenue += (order.amount + (order.deliveryCost || 0));
-            grouped[key].ordersCount += 1;
-        });
-
-        const sortedData = Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
-        setStatsData(sortedData);
+            html2canvas(input, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then((canvas) => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`BroShop_Report_${stats.period?.start}_${stats.period?.end}.pdf`);
+                
+                input.style.background = originalBg;
+                input.style.color = originalColor;
+                input.style.border = originalBorder;
+                textElements.forEach(el => {
+                    if(el.style) el.style.color = '';
+                });
+                
+                setIsPdfMode(false);
+            });
+        }, 500);
     };
 
-    const handleExportPDF = () => {
-        const input = pdfRef.current;
-        
-        // Временно перекрашиваем блок в белый цвет, чтобы PDF отчет был презентабельным
-        const originalBg = input.style.background;
-        const originalPadding = input.style.padding;
-        const originalColor = input.style.color;
+    if (!stats) return <Typography sx={{ p: 5, color: '#fff' }}>Загрузка аналитики...</Typography>;
 
-        input.style.background = '#ffffff';
-        input.style.color = '#121212';
-        input.style.padding = '30px';
-        input.style.borderRadius = '0px';
-
-        // Форсируем перекраску текста внутри таблиц для PDF
-        const textElements = input.querySelectorAll('.pdf-text, th, td, h4, h6');
-        textElements.forEach(el => el.style.color = '#121212');
-
-        html2canvas(input, { scale: 2, useCORS: true }).then((canvas) => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            
-            pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
-            pdf.save(`BroShop_Report_${new Date().toLocaleDateString('ru-RU')}.pdf`);
-            
-            // Возвращаем стили веб-интерфейса на место
-            input.style.background = originalBg;
-            input.style.padding = originalPadding;
-            input.style.color = originalColor;
-            input.style.borderRadius = '24px';
-            textElements.forEach(el => el.style.color = '');
-        });
-    };
-
-    const totalRevenue = statsData.reduce((sum, item) => sum + item.revenue, 0);
-    const totalOrdersCount = statsData.reduce((sum, item) => sum + item.ordersCount, 0);
+    const textAxisColor = isPdfMode ? "#000000" : "#9e9e9e";
 
     return (
-        <Box sx={{ color: 'var(--text-main)'}}>
-            {/* Хедер страницы */}
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}
-                sx={{mb: 3, p: 3, background: 'var(--card-bg)', backdropFilter: 'var(--card-blur)', borderRadius: '24px', border: '1px solid var(--border-color)'}}>
-                <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', mb: 2 }}>
-                    Аналитика и Отчеты
-                </Typography>
-                
-                <Button 
-                    variant="contained" 
-                    startIcon={<PictureAsPdfIcon />} 
-                    onClick={handleExportPDF}
-                    sx={{
-                        backgroundColor: '#ffffff',
-                        color: '#121212',
-                        borderRadius: '12px',
-                        fontWeight: 'bold',
-                        px: 3,
-                        py: 1.2,
-                        '&:hover': {
-                            backgroundColor: '#e5e5e5',
-                            boxShadow: '0 4px 15px rgba(255, 255, 255, 0.2)'
-                        }
-                    }}
-                >
-                    Скачать PDF
-                </Button>
+        <Box sx={{ color: isPdfMode ? '#000000' : 'var(--text-main, #ffffff)' }}>
+            
+            {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
+            <Box sx={{ mb: 3, p: 3, background: 'var(--card-bg, #1a1a1a)', backdropFilter: 'var(--card-blur, none)', borderRadius: '24px', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2}>
+                    <Typography variant="h5" sx={{mb: 2, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#fff' }}>
+                        Учет и статистика
+                    </Typography>
+
+                    <Button
+                        variant="contained" 
+                        startIcon={<PictureAsPdfIcon />} 
+                        onClick={handleExportPDF}
+                        sx={{mb: 2, backgroundColor: '#ffffff', color: '#121212', borderRadius: '12px', fontWeight: 'bold', px: 3, py: 1, '&:hover': { backgroundColor: '#e5e5e5' } }}
+                    >
+                        Сформировать PDF
+                    </Button>
+                </Box>
+
+                {/* Переключатель режимов выбора даты */}
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} sx={{borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Tabs 
+                        value={filterMode} 
+                        onChange={(e, newValue) => setFilterMode(newValue)}
+                        textColor="inherit"
+                        TabIndicatorProps={{ style: { backgroundColor: '#b39ddb' } }}
+                        sx={{ color: '#fff' }}
+                    >
+                        <Tab icon={<CalendarMonthIcon />} iconPosition="start" label="По месяцам" sx={{ textTransform: 'none', fontWeight: 'bold' }} />
+                        <Tab icon={<DateRangeIcon />} iconPosition="start" label="Точный период" sx={{ textTransform: 'none', fontWeight: 'bold' }} />
+                    </Tabs>
+
+                    {/* Поля фильтрации меняются в зависимости от выбранного режима */}
+                    <Box sx={{pt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+                        {filterMode === 0 ? (
+                            // Селектор месяцев
+                            <FormControl size="small" sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { fieldset: { borderColor: 'rgba(255,255,255,0.2)' } } }}>
+                                <Select
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    sx={{ color: '#fff', '.MuiSvgIcon-root': { color: '#fff' } }}
+                                    MenuProps={{ PaperProps: { sx: { bgcolor: '#1a1a1a', color: '#fff' } } }}
+                                >
+                                    {availableMonths.map((m) => (
+                                        <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        ) : (
+                            // выбор дат вручную
+                            <>
+                                <TextField 
+                                    label="С" type="date" size="small" value={startDate} 
+                                    onChange={(e) => setStartDate(e.target.value)} InputLabelProps={{ shrink: true }}
+                                    sx={{ input: { color: '#fff' }, label: { color: 'rgba(255,255,255,0.7)' }, '& .MuiOutlinedInput-root': { fieldset: { borderColor: 'rgba(255,255,255,0.2)' } } }}
+                                />
+                                <TextField 
+                                    label="По" type="date" size="small" value={endDate} 
+                                    onChange={(e) => setEndDate(e.target.value)} InputLabelProps={{ shrink: true }}
+                                    sx={{ input: { color: '#fff' }, label: { color: 'rgba(255,255,255,0.7)' }, '& .MuiOutlinedInput-root': { fieldset: { borderColor: 'rgba(255,255,255,0.2)' } } }}
+                                />
+                            </>
+                        )}
+                    </Box>
+                </Box>
             </Box>
 
-            {/* Контроллеры и Карточки показателей */}
-            <Grid container spacing={3} mb={4} sx={{mb: 4}}>
-                <Grid item xs={12} sm={4}>
-                    <FormControl fullWidth>
-                        <InputLabel sx={{ color: 'var(--text-muted)', '&.Mui-focused': { color: '#b39ddb' } }}>Группировать по</InputLabel>
-                        <Select
-                            value={groupBy}
-                            label="Группировать по"
-                            onChange={(e) => setGroupBy(e.target.value)}
-                            sx={{
-                                color: '#ffffff',
-                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                                borderRadius: '12px',
-                                '.MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-color)' },
-                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#b39ddb' },
-                                '.MuiSvgIcon-root': { color: 'var(--text-muted)' }
-                            }}
-                            MenuProps={{
-                                PaperProps: {
-                                    sx: {
-                                        backgroundColor: '#1a1a1a',
-                                        color: '#ffffff',
-                                        borderRadius: '12px',
-                                        border: '1px solid var(--border-color)'
-                                    }
-                                }
-                            }}
-                        >
-                            <MenuItem value="day">По дням</MenuItem>
-                            <MenuItem value="month">По месяцам</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Grid>
-                
-                <Grid item xs={12} sm={4}>
-                    <Paper sx={{ 
-                        p: 2.5, textAlign: 'center', 
-                        background: 'var(--card-bg)', backdropFilter: 'var(--card-blur)',
-                        border: '1px solid var(--border-color)', borderRadius: '16px'
-                    }}>
-                        <Typography variant="subtitle2" sx={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '1px' }}>Всего заказов</Typography>
-                        <Typography variant="h4" sx={{ fontWeight: 'bold', mt: 0.5, color: '#ffffff' }}>{totalOrdersCount}</Typography>
-                    </Paper>
-                </Grid>
-                
-                <Grid item xs={12} sm={4}>
-                    <Paper sx={{ 
-                        p: 2.5, textAlign: 'center', 
-                        background: 'var(--card-bg)', backdropFilter: 'var(--card-blur)',
-                        border: '1px solid var(--border-color)', borderRadius: '16px'
-                    }}>
-                        <Typography variant="subtitle2" sx={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '1px' }}>Общая выручка</Typography>
-                        <Typography variant="h4" sx={{ fontWeight: 'bold', mt: 0.5, color: '#b39ddb' }}>
-                            {totalRevenue.toLocaleString('ru-RU')} ₽
-                        </Typography>
-                    </Paper>
-                </Grid>
-            </Grid>
-
-            {/* ОБЛАСТЬ ДЛЯ ЭКСПОРТА В PDF */}
+            {/* ОСНОВНАЯ ОБЛАСТЬ (ЭКСПОРТИРУЕТСЯ В PDF) */}
             <Box 
                 ref={pdfRef} 
                 sx={{ 
-                    background: 'var(--card-bg)', 
-                    backdropFilter: 'var(--card-blur)',
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '24px',
-                    p: 4,
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)'
+                    background: isPdfMode ? '#ffffff' : 'var(--card-bg, #1a1a1a)', 
+                    backdropFilter: isPdfMode ? 'none' : 'var(--card-blur, none)',
+                    border: isPdfMode ? 'none' : '1px solid var(--border-color, rgba(255,255,255,0.1))', 
+                    borderRadius: isPdfMode ? '0px' : '24px',
+                    p: isPdfMode ? 5 : 4,
+                    minHeight: '800px',
+                    '& .MuiTableCell-root': {
+                        color: isPdfMode ? '#000000' : 'rgba(255,255,255,0.8)',
+                        borderColor: isPdfMode ? '#e0e0e0' : 'rgba(255,255,255,0.05)'
+                    }
                 }}
             >
-                <Typography variant="h5" className="pdf-text" sx={{ fontWeight: 'bold', mb: 4, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    Отчет по продажам BroShop
+                {/* ОФИЦИАЛЬНАЯ ШАПКА */}
+                {isPdfMode && (
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 5 }}>
+                        <Box sx={{ textAlign: 'right', fontFamily: '"Times New Roman", serif', color: '#000000' }}>
+                            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>УТВЕРЖДАЮ</Typography>
+                            <Typography variant="body1">Директор "BroShop"</Typography>
+                            <Typography variant="body1">Елсуков Д. С. ___________________</Typography>
+                            <Typography variant="body1">«___» ______________ 202__ г.</Typography>
+                        </Box>
+                    </Box>
+                )}
+
+                <Typography variant="h5" align="center" sx={{ fontWeight: 'bold', mb: 1, color: isPdfMode ? '#000' : '#ffffff', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    Отчет по финансовым показателям и продажам
+                </Typography>
+                <Typography variant="subtitle1" align="center" sx={{ mb: 4, color: isPdfMode ? '#000' : 'var(--text-muted, #9e9e9e)' }}>
+                    За период: с {stats.period?.start} по {stats.period?.end}
                 </Typography>
 
-                <Typography variant="subtitle1" className="pdf-text" sx={{ fontWeight: 'bold', mb: 2, color: 'var(--text-muted)' }}>
-                    Динамика выручки
-                </Typography>
-                
-                {/* График выручки в неоновом стиле */}
-                <Paper elevation={0} sx={{ p: 2, mb: 4, height: 350, background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                {/* КАРТОЧКИ СВОДКИ */}
+                <Grid container spacing={3} mb={4}>
+                    <Grid item xs={12} sm={3}>
+                        <Paper elevation={0} sx={{ p: 2, textAlign: 'center', background: isPdfMode ? '#f5f5f5' : 'rgba(255,255,255,0.03)', border: isPdfMode ? '1px solid #ccc' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                            <Typography variant="caption" sx={{ textTransform: 'uppercase', color: isPdfMode ? '#555' : '#9e9e9e' }}>Выручка</Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 1, color: isPdfMode ? '#000' : '#b39ddb' }}>{(stats.totalRevenue ?? 0).toLocaleString('ru-RU')} ₽</Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                        <Paper elevation={0} sx={{ p: 2, textAlign: 'center', background: isPdfMode ? '#f5f5f5' : 'rgba(255,255,255,0.03)', border: isPdfMode ? '1px solid #ccc' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                            <Typography variant="caption" sx={{ textTransform: 'uppercase', color: isPdfMode ? '#555' : '#9e9e9e' }}>Всего заказов</Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 1, color: isPdfMode ? '#000' : '#fff' }}>{stats.totalOrders}</Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                        <Paper elevation={0} sx={{ p: 2, textAlign: 'center', background: isPdfMode ? '#f5f5f5' : 'rgba(255,255,255,0.03)', border: isPdfMode ? '1px solid #ccc' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                            <Typography variant="caption" sx={{ textTransform: 'uppercase', color: isPdfMode ? '#555' : '#9e9e9e' }}>Средний чек</Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 1, color: isPdfMode ? '#000' : '#fff' }}>{Math.round(stats.averageCheck ?? 0).toLocaleString('ru-RU')} ₽</Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                        <Paper elevation={0} sx={{ p: 2, textAlign: 'center', background: isPdfMode ? '#f5f5f5' : 'rgba(255,255,255,0.03)', border: isPdfMode ? '1px solid #ccc' : '1px solid rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                            <Typography variant="caption" sx={{ textTransform: 'uppercase', color: isPdfMode ? '#555' : '#9e9e9e' }}>Ожидают обработки</Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 1, color: isPdfMode ? '#000' : '#ffab91' }}>{stats.pendingOrders}</Typography>
+                        </Paper>
+                    </Grid>
+                </Grid>
+
+                {/* ГРАФИК ДИНАМИКИ ВЫРУЧКИ */}
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, mt: 4, color: isPdfMode ? '#000' : '#fff' }}>1. Динамика выручки по дням</Typography>
+                <Paper elevation={0} sx={{ p: 2, mb: 4, height: 300, background: isPdfMode ? '#fff' : 'rgba(255,255,255,0.02)', borderRadius: '16px', border: isPdfMode ? '1px solid #ccc' : '1px solid rgba(255,255,255,0.05)' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={statsData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                            <XAxis dataKey="name" stroke="var(--text-muted)" tick={{ fontSize: 12 }} />
-                            <YAxis stroke="var(--text-muted)" tick={{ fontSize: 12 }} />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#1a1a1a', borderColor: 'var(--border-color)', borderRadius: '8px', color: '#fff' }}
-                                formatter={(value) => [`${value.toLocaleString('ru-RU')} ₽`, 'Выручка']} 
-                            />
-                            <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                            {/* Фиолетово-неоновый бар скругленной формы */}
-                            <Bar dataKey="revenue" name="Выручка (₽)" fill="#b39ddb" radius={[6, 6, 0, 0]} maxBarSize={60} />
+                        <BarChart data={stats.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={isPdfMode ? "#e0e0e0" : "rgba(255,255,255,0.1)"} />
+                            <XAxis dataKey="date" stroke={textAxisColor} tick={{ fontSize: 12 }} />
+                            <YAxis stroke={textAxisColor} tick={{ fontSize: 12 }} />
+                            <RechartsTooltip contentStyle={{ backgroundColor: isPdfMode ? '#fff' : '#1a1a1a', borderRadius: '8px', color: isPdfMode ? '#000' : '#fff' }} formatter={(value) => [`${value.toLocaleString('ru-RU')} ₽`, 'Выручка']} />
+                            <Legend wrapperStyle={{ color: textAxisColor }} />
+                            <Bar dataKey="revenue" name="Выручка (₽)" fill="#b39ddb" radius={[4, 4, 0, 0]} maxBarSize={50} />
                         </BarChart>
                     </ResponsiveContainer>
                 </Paper>
 
-                <Typography variant="subtitle1" className="pdf-text" sx={{ fontWeight: 'bold', mb: 2, color: 'var(--text-muted)' }}>
-                    Таблица показателей
-                </Typography>
+                {/* КРУГОВЫЕ ДИАГРАММЫ */}
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, color: isPdfMode ? '#000' : '#fff' }}>2. Структура продаж</Typography>
+                <Grid container spacing={4} mb={4}>
+                    <Grid item xs={12} md={6}>
+                        <Paper elevation={0} sx={{ p: 2, height: 320, background: isPdfMode ? '#fff' : 'rgba(255,255,255,0.02)', borderRadius: '16px', border: isPdfMode ? '1px solid #ccc' : '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, color: isPdfMode ? '#000' : '#fff' }}>Популярные категории (шт.)</Typography>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie data={stats.categoryStats} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={75} label={{ fill: textAxisColor, fontSize: 11 }}>
+                                        {stats.categoryStats?.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                    </Pie>
+                                    <RechartsTooltip />
+                                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <Paper elevation={0} sx={{ p: 2, height: 320, background: isPdfMode ? '#fff' : 'rgba(255,255,255,0.02)', borderRadius: '16px', border: isPdfMode ? '1px solid #ccc' : '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, color: isPdfMode ? '#000' : '#fff' }}>Популярные бренды (шт.)</Typography>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie data={stats.brandStats} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={75} label={{ fill: textAxisColor, fontSize: 11 }}>
+                                        {stats.brandStats?.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                    </Pie>
+                                    <RechartsTooltip />
+                                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
+                </Grid>
 
-                {/* Таблица данных */}
-                <TableContainer component={Paper} elevation={0} sx={{ background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '16px', overflow: 'hidden' }}>
+                {/* ТАБЛИЦА ТОП-5 */}
+                <Typography variant="subtitle1" sx={{pt: 3, fontWeight: 'bold', mb: 2, color: isPdfMode ? '#000' : '#fff'}}>3. Топ-5 продаваемых товаров</Typography>
+                <TableContainer component={Paper} elevation={0} sx={{ background: 'transparent', border: isPdfMode ? '1px solid #ccc' : '1px solid var(--border-color, rgba(255,255,255,0.1))', borderRadius: '16px', overflow: 'hidden' }}>
                     <Table>
-                        <TableHead sx={{ backgroundColor: 'rgba(255, 255, 255, 0.04)' }}>
+                        <TableHead sx={{ backgroundColor: isPdfMode ? '#f5f5f5' : 'rgba(255, 255, 255, 0.04)' }}>
                             <TableRow>
-                                <TableCell sx={{ color: 'var(--text-muted)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>Период</TableCell>
-                                <TableCell align="center" sx={{ color: 'var(--text-muted)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>Количество заказов</TableCell>
-                                <TableCell align="right" sx={{ color: 'var(--text-muted)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>Выручка</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Наименование товара</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 'bold' }}>Продано (шт.)</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Принесенная выручка</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {statsData.map((row) => (
-                                <TableRow key={row.name} sx={{ '&:hover': { backgroundColor: 'rgba(255,255,255,0.02)' } }}>
-                                    <TableCell component="th" scope="row" sx={{ color: '#ffffff', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>
-                                        {row.name}
-                                    </TableCell>
-                                    <TableCell align="center" sx={{ color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)' }}>{row.ordersCount} шт.</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: '#b39ddb', borderBottom: '1px solid var(--border-color)' }}>
-                                        {row.revenue.toLocaleString('ru-RU')} ₽
-                                    </TableCell>
+                            {stats.topProducts?.map((row, index) => (
+                                <TableRow key={index} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                    <TableCell component="th" scope="row">{row.name}</TableCell>
+                                    <TableCell align="center">{row.quantitySold}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{(row.revenue ?? 0).toLocaleString('ru-RU')} ₽</TableCell>
                                 </TableRow>
                             ))}
-                            {statsData.length === 0 && (
+                            {(!stats.topProducts || stats.topProducts.length === 0) && (
                                 <TableRow>
-                                    <TableCell colSpan={3} align="center" sx={{ color: 'var(--text-muted)', py: 4 }}>
-                                        Нет данных для отображения
-                                    </TableCell>
+                                    <TableCell colSpan={3} align="center" sx={{ py: 3 }}>Нет данных за этот период</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </TableContainer>
+
             </Box>
         </Box>
     );

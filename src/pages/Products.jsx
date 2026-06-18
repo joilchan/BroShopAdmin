@@ -246,7 +246,7 @@ const Products = () => {
                         onClick={() => { setDictionaryType('brand'); setOpenDictionary(true); }}
                         sx={{ color: 'rgba(255,255,255,0.7)', borderColor: 'rgba(255,255,255,0.2)', borderRadius: '12px', textTransform: 'none', '&:hover': { borderColor: '#fff', color: '#fff', backgroundColor: 'rgba(255,255,255,0.05)' } }}
                     >
-                        Справочники
+                        Бренды/Категории
                     </Button>
                     <Button 
                         variant="contained" 

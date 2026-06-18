@@ -1,13 +1,8 @@
- import React, { useState } from 'react';
-
+import React, { useState } from 'react';
 import { Box, Typography, Paper, Tabs, Tab, TextField, Button, Alert, Grid } from '@mui/material';
-
 import api from '../api/axiosConfig';
 
-
-
 // Общие стили для темных полей ввода
-
 const darkInputStyles = {
 
     '& .MuiOutlinedInput-root': {
@@ -33,10 +28,7 @@ const darkInputStyles = {
 
 };
 
-
-
 // Стили для кастомных уведомлений (Alert)
-
 const alertStyles = {
 
     borderRadius: '12px',
@@ -65,31 +57,18 @@ const Profile = ({ currentUser, onUserUpdate }) => {
     const [activeTab, setActiveTab] = useState(0);
 
     // Сообщения об операциях
-
     const [infoMessage, setInfoMessage] = useState({ text: '', severity: 'success' });
-
     const [securityMessage, setSecurityMessage] = useState({ text: '', severity: 'success' });
 
-
-
     // Состояния для вкладки "Личные данные"
-
     const [fullName, setFullName] = useState(currentUser.fullName || '');
-
     const [login, setLogin] = useState(currentUser.login || '');
-
     const [email, setEmail] = useState(currentUser.email || '');
 
-
-
     // Состояния для вкладки "Безопасность"
-
     const [currentPassword, setCurrentPassword] = useState('');
-
     const [newPassword, setNewPassword] = useState('');
-
     const [confirmPassword, setConfirmPassword] = useState('');
-
     const handleTabChange = (event, newValue) => {
 
         setActiveTab(newValue);
@@ -125,10 +104,7 @@ const Profile = ({ currentUser, onUserUpdate }) => {
 
     };
 
-
-
     // Смена пароля
-
     const handleUpdatePassword = async (e) => {
 
         e.preventDefault();
@@ -164,14 +140,12 @@ const Profile = ({ currentUser, onUserUpdate }) => {
 
     };
 
-
-
     return (
 
         <Box maxWidth="md">
 
             <Typography variant="h5" fontWeight="bold" sx={{ color: '#fff', textTransform: 'uppercase', letterSpacing: '1px', mb: 4 }}>
-                Личный кабинет
+                Мой профиль
             </Typography>
 
             <Paper sx={{ width: '100%', backgroundColor: '#111111', borderRadius: '20px', boxShadow: 'none', border: '1px solid rgba(255, 255, 255, 0.1)', overflow: 'hidden' }}>
@@ -203,8 +177,6 @@ const Profile = ({ currentUser, onUserUpdate }) => {
                     <Tab label="Личные данные" sx={{ px: 4 }} />
                     <Tab label="Безопасность и пароль" sx={{ px: 4 }} />
                 </Tabs>
-
-
 
                 {/* ВКЛАДКА 1: ЛИЧНЫЕ ДАННЫЕ */}
 
@@ -342,7 +314,5 @@ const Profile = ({ currentUser, onUserUpdate }) => {
         </Box>
     );
 };
-
-
 
 export default Profile;
